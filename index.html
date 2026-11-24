@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#061420">
+<title>TACK · Yacht Race Timer</title>
+<style>
+:root{
+  --bg:#061420;--panel:#0c2131;--line:#1d3a4f;--text:#f2f7fa;--muted:#8fa9b9;
+  --accent:#ff8a1f;--accent-ink:#1d0d00;--ok:#38d9a0;--warn:#ffcf5c;--danger:#ff5d5d;
+  color-scheme:dark;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text)}
+body{-webkit-tap-highlight-color:transparent}
+main{max-width:520px;margin:0 auto;padding:16px 16px calc(28px + env(safe-area-inset-bottom))}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{font-weight:800;letter-spacing:.22em;font-size:20px}
+.brand span{color:var(--accent)}
+.tag{color:var(--muted);font-size:13px;margin:2px 0 0}
+select,input,button{font:inherit;color:inherit}
+select,input[type=number],input[type=text]{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%}
+#lang{width:auto;padding:8px 10px;font-size:14px}
+
+/* 시계 */
+.watch{position:relative;width:min(84vw,360px);aspect-ratio:1;margin:18px auto 6px}
+.watch svg{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg)}
+.ring-bg{fill:none;stroke:var(--line);stroke-width:7}
+.ring{fill:none;stroke:var(--accent);stroke-width:7;stroke-linecap:round;transition:stroke-dashoffset .1s linear,stroke .3s}
+.ticks line{stroke:var(--muted);stroke-width:1.2;opacity:.55}
+.ticks line.major{stroke:var(--text);stroke-width:2.4;opacity:.9}
+.face{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+#phase{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+#clock{font-size:clamp(58px,19vw,92px);font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.03em;line-height:1.05;margin:4px 0}
+#tenth{font-size:.42em;color:var(--muted);font-weight:600}
+.final #clock{color:var(--accent)}
+.racing .ring{stroke:var(--ok)}
+#micChip{display:inline-flex;align-items:center;gap:8px;margin-top:6px;font-size:13px;color:var(--muted);padding:5px 10px;border:1px solid var(--line);border-radius:99px}
+#micDot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.mic-on #micDot{background:var(--ok);box-shadow:0 0 0 4px rgba(56,217,160,.18)}
+#meter{width:46px;height:5px;background:var(--line);border-radius:3px;overflow:hidden;display:none}
+.mic-on #meter{display:block}
+#meterBar{height:100%;width:0;background:var(--ok)}
+
+#banner{min-height:22px;text-align:center;font-size:14px;color:var(--warn);margin:4px 0 10px}
+
+/* 버튼 */
+button{border:1px solid var(--line);background:var(--panel);border-radius:14px;padding:12px;min-height:52px;cursor:pointer;touch-action:manipulation}
+button:active{transform:scale(.98)}
+.signals{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.signals button{min-height:78px;font-size:32px;font-weight:800;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1}
+.signals button small{font-size:11px;font-weight:600;letter-spacing:.12em;color:var(--muted);margin-top:6px}
+.signals button.main{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.signals button.main small{color:var(--accent-ink);opacity:.7}
+.hint{text-align:center;color:var(--muted);font-size:12px;margin:8px 0 12px}
+.tools{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.tools button{font-weight:600;font-size:15px;white-space:nowrap;padding:12px 4px;overflow:hidden;text-overflow:ellipsis}
+#undo:disabled{opacity:.35}
+.microw{display:grid;grid-template-columns:1fr;gap:8px;margin-top:14px}
+#micBtn{font-weight:700;font-size:17px;min-height:58px;display:flex;align-items:center;justify-content:center;gap:10px}
+.mic-on #micBtn{background:rgba(56,217,160,.12);border-color:var(--ok);color:var(--ok)}
+
+/* 접는 패널 */
+details{background:var(--panel);border:1px solid var(--line);border-radius:14px;margin-top:12px}
+summary{padding:16px;font-weight:700;cursor:pointer;list-style:none;display:flex;justify-content:space-between}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"＋";color:var(--muted)}
+details[open] summary::after{content:"－"}
+.body{padding:0 16px 16px}
+label{display:block;margin:12px 0;color:var(--muted);font-size:14px}
+label > input,label > select{margin-top:6px;color:var(--text)}
+.check{display:flex;align-items:center;gap:10px;color:var(--text)}
+.check input{width:20px;height:20px;accent-color:var(--accent)}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:var(--bg);padding:4px;border-radius:12px}
+.seg label{margin:0;text-align:center;padding:10px;border-radius:9px;cursor:pointer;color:var(--muted);font-weight:600}
+.seg input{display:none}
+.seg label:has(input:checked){background:var(--panel);color:var(--text);box-shadow:inset 0 0 0 1px var(--line)}
+.note{font-size:12px;color:var(--muted);line-height:1.55;margin:6px 0 0}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end}
+input:disabled{opacity:.4}
+.row{display:flex;gap:8px;margin-top:8px}.row>*{flex:1}
+.metric{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);font-size:15px}
+#log{max-height:180px;overflow:auto;font-size:12px;color:var(--muted);white-space:pre-wrap;margin:0}
+.foot{font-size:12px;color:var(--muted);text-align:center;margin-top:16px;line-height:1.5}
+</style>
+</head>
+<body>
+<main id="app">
+  <header>
+    <div><div class="brand">TACK<span>↗</span></div><p class="tag" data-i18n="tagline"></p></div>
+    <select id="lang" aria-label="Language"></select>
+  </header>
+
+  <div class="watch">
+    <svg viewBox="0 0 200 200" aria-hidden="true">
+      <g class="ticks" id="ticks"></g>
+      <circle class="ring-bg" cx="100" cy="100" r="84"/>
+      <circle class="ring" id="ring" cx="100" cy="100" r="84" stroke-dasharray="527.79" stroke-dashoffset="0"/>
+    </svg>
+    <div class="face">
+      <div id="phase"></div>
+      <div id="clock" aria-live="off">05:00<span id="tenth">.0</span></div>
+      <div id="micChip"><span id="micDot"></span><span id="micState"></span><span id="meter"><span id="meterBar" style="display:block"></span></span></div>
+    </div>
+  </div>
+  <div id="banner" role="status"></div>
+
+  <div class="signals">
+    <button id="start10">10<small>MIN</small></button>
+    <button id="start" class="main">5<small>MIN</small></button>
+    <button id="sync">4<small>MIN</small></button>
+    <button id="sync1">1<small>MIN</small></button>
+  </div>
+  <p class="hint" data-i18n="syncHint"></p>
+  <div class="tools">
+    <button id="minus" data-i18n="minus"></button>
+    <button id="plus" data-i18n="plus"></button>
+    <button id="undo" data-i18n="undo" disabled></button>
+    <button id="reset" data-i18n="reset"></button>
+  </div>
+
+  <div class="microw">
+    <button id="micBtn"><span aria-hidden="true">📯</span><span id="micLabel" data-i18n="micOn"></span></button>
+    <select id="sequence" aria-label="sequence">
+      <option value="5" data-i18n="seq5"></option>
+      <option value="10" data-i18n="seq10"></option>
+    </select>
+  </div>
+
+  <details id="planBox">
+    <summary data-i18n="plan"></summary>
+    <div class="body">
+      <div class="seg">
+        <label><input type="radio" name="plan" id="planFixed" value="fixed" checked><span data-i18n="planFixed"></span></label>
+        <label><input type="radio" name="plan" id="planCustom" value="custom"><span data-i18n="planCustom"></span></label>
+      </div>
+      <p class="note" id="fixedDesc" data-i18n="planFixedDesc"></p>
+      <div id="customBox" hidden>
+        <label><span data-i18n="minuteMode"></span>
+          <select id="minuteMode"><option value="every" data-i18n="every"></option><option value="list" data-i18n="list"></option></select></label>
+        <label><span data-i18n="minutes"></span><input id="minutes" type="text" inputmode="numeric" value="10, 5, 4, 1"></label>
+        <div class="two">
+          <label><span data-i18n="step"></span><select id="step"></select></label>
+          <label><span data-i18n="countFrom"></span><input id="countFrom" type="number" min="0" max="60" step="1" value="30"></label>
+        </div>
+      </div>
+    </div>
+  </details>
+
+  <details>
+    <summary data-i18n="settings"></summary>
+    <div class="body">
+      <label class="check"><input id="voice" type="checkbox" checked><span data-i18n="voice"></span></label>
+      <label class="check"><input id="earphone" type="checkbox"><span data-i18n="earphone"></span></label>
+      <div class="row"><button id="audio" data-i18n="voiceTest"></button><button id="demo" data-i18n="practice"></button></div>
+      <label><span data-i18n="delay"></span><input id="delay" type="number" min="0" max="10" step="0.1" value="1.5"></label>
+      <p class="note" data-i18n="delayNote"></p>
+      <label><span data-i18n="sensitivity"></span>
+        <select id="sensitivity"><option value="high" data-i18n="sensHigh"></option><option value="normal" data-i18n="sensNormal" selected></option><option value="low" data-i18n="sensLow"></option></select></label>
+      <div class="two">
+        <label><span data-i18n="micOffset"></span><input id="micOffset" type="number" min="0" max="5" step="0.1" value="0"></label>
+        <label><span data-i18n="tolerance"></span><input id="tolerance" type="number" min="1" max="30" step="1" value="5"></label>
+      </div>
+      <p class="note" data-i18n="micOffsetNote"></p>
+    </div>
+  </details>
+
+  <details>
+    <summary data-i18n="race"></summary>
+    <div class="body">
+      <div class="two">
+        <label><span data-i18n="raceLimit"></span><input id="race" type="number" min="0.1" step="0.1" value="60"></label>
+        <label><span data-i18n="markLimit"></span><input id="mark" type="number" min="0.1" step="0.1" value="15"></label>
+      </div>
+      <label><span data-i18n="finishWindow"></span><input id="finish" type="number" min="0.1" step="0.1" value="10"></label>
+      <button id="apply" data-i18n="apply" style="width:100%"></button>
+      <p class="note" id="settings"></p>
+      <div class="metric"><span data-i18n="raceLimit"></span><strong id="raceOut"></strong></div>
+      <div class="metric"><span data-i18n="markLimit"></span><strong id="markOut"></strong></div>
+      <div class="metric"><span data-i18n="finishWindow"></span><strong id="finishOut"></strong></div>
+      <div class="row"><button id="markBtn" data-i18n="markBtn"></button><button id="finishBtn" data-i18n="finishBtn"></button></div>
+      <p class="note" data-i18n="raceNote"></p>
+    </div>
+  </details>
+
+  <details>
+    <summary data-i18n="log"></summary>
+    <div class="body"><pre id="log" role="log"></pre></div>
+  </details>
+
+  <p class="foot" id="warn" data-i18n="warn"></p>
+</main>
+<script src="core.js"></script>
+<script src="i18n.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
